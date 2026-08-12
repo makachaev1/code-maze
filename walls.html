@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>System Error Style Door Game</title>
+
+<style>
+    body {
+        margin: 0;
+        overflow: hidden;
+        background: black;
+        font-family: monospace;
+    }
+
+    canvas {
+        display: block;
+        margin: auto;
+        background: #111;
+    }
+</style>
+</head>
+
+<body>
+
+<canvas id="game"></canvas>
+
+<script>
+// =========================
+// CANVAS
+// =========================
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+canvas.width = 800;
+canvas.height = 600;
+
+// =========================
+// TEXTURE
+// =========================
+const tileImg = new Image();
+tileImg.src = "/mnt/data/images.jpg"; // your texture
+
+// =========================
+// MAP CONFIG
+// =========================
+const TILE = 40;
+const COLS = 20;
+const ROWS = 15;
+
+const FLOOR = 0;
+const WALL = 1;
+const DOOR_CLOSED = 2;
+const DOOR_OPEN = 3;
+
+let map = [];
+
+// BUILD MAP
+for (let y = 0; y < ROWS; y++) {
+    map[y] = [];
+    for (let x = 0; x < COLS; x++) {
+
+        // walls upper-right
+        if (x > 12 && y < 5) {
+            map[y][x] = WALL;
+        } else {
+            map[y][x] = FLOOR;
+        }
+    }
+}
+
+// DOORS
+map[5][13] = DOOR_CLOSED;
+map[5][14] = DOOR_CLOSED;
+
+// =========================
+// PLAYER
+// =========================
+const player = {
+    x: 120,
+    y: 120,
+    size: 20,
+    speed: 3
+};
+
+// =========================
+// INPUT
+// =========================
+let keys = {};
+
+window.addEventListener("keydown", e => {
+    keys[e.key.toLowerCase()] = true;
+
+    if (e.key.toLowerCase() === "e") {
+        interact();
+    }
+});
+
+window.addEventListener("keyup", e => {
+    keys[e.key.toLowerCase()] = false;
+});
+
+// =========================
+// COLLISION
+// =========================
+function isBlocked(x, y) {
+    let col = Math.floor(x / TILE);
+    let row = Math.floor(y / TILE);
+
+    if (col < 0 || row < 0 || col >= COLS || row >= ROWS) return true;
+
+    let tile = map[row][col];
+    return tile === WALL || tile === DOOR_CLOSED;
+}
+
+// =========================
+// INTERACTION (E KEY)
+// =========================
+let message = "";
+
+function interact() {
+    let col = Math.floor(player.x / TILE);
+    let row = Math.floor(player.y / TILE);
+
+    let dirs = [
+        [0,-1],
+        [0,1],
+        [-1,0],
+        [1,0]
+    ];
+
+    for (let d of dirs) {
+        let nx = col + d[0];
+        let ny = row + d[1];
+
+        if (nx >= 0 && ny >= 0 && nx < COLS && ny < ROWS) {
+            if (map[ny][nx] === DOOR_CLOSED) {
+                map[ny][nx] = DOOR_OPEN;
+                message = "Door opened ✔";
+                return;
+            }
+        }
+    }
+
+    message = "Nothing nearby...";
+}
+
+// =========================
+// UPDATE
+// =========================
+function update() {
+    let nx = player.x;
+    let ny = player.y;
+
+    if (keys["w"]) ny -= player.speed;
+    if (keys["s"]) ny += player.speed;
+    if (keys["a"]) nx -= player.speed;
+    if (keys["d"]) nx += player.speed;
+
+    if (!isBlocked(nx, player.y)) player.x = nx;
+    if (!isBlocked(player.x, ny)) player.y = ny;
+}
+
+// =========================
+// DRAW MAP
+// =========================
+function drawMap() {
+    for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+
+            ctx.drawImage(tileImg, x*TILE, y*TILE, TILE, TILE);
+
+            let t = map[y][x];
+
+            if (t === WALL) {
+                ctx.fillStyle = "rgba(0,0,0,0.6)";
+                ctx.fillRect(x*TILE, y*TILE, TILE, TILE);
+            }
+
+            if (t === DOOR_CLOSED) {
+                ctx.fillStyle = "brown";
+                ctx.fillRect(x*TILE+6, y*TILE+6, TILE-12, TILE-12);
+            }
+
+            if (t === DOOR_OPEN) {
+                ctx.fillStyle = "rgba(139,69,19,0.3)";
+                ctx.fillRect(x*TILE+6, y*TILE+6, TILE-12, TILE-12);
+            }
+        }
+    }
+}
+
+// =========================
+// DRAW PLAYER
+// =========================
+function drawPlayer() {
+    ctx.fillStyle = "red";
+    ctx.fillRect(
+        player.x - player.size/2,
+        player.y - player.size/2,
+        player.size,
+        player.size
+    );
+}
+
+// =========================
+// UI
+// =========================
+function drawUI() {
+    ctx.fillStyle = "white";
+    ctx.font = "16px monospace";
+    ctx.fillText("WASD = Move | E = Interact", 10, 20);
+
+    if (message) {
+        ctx.fillStyle = "yellow";
+        ctx.fillText(message, 10, 40);
+    }
+}
+
+// =========================
+// LOOP
+// =========================
+function loop() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    update();
+    drawMap();
+    drawPlayer();
+    drawUI();
+
+    requestAnimationFrame(loop);
+}
+
+// =========================
+// START
+// =========================
+tileImg.onload = () => {
+    loop();
+};
+</script>
+
+</body>
+</html>
